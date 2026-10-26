@@ -1,0 +1,58 @@
+# Runs all 4 microservices together: `docker compose up -d --build`
+x-healthcheck: &healthcheck
+  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+  interval: 5s
+  timeout: 3s
+  retries: 5
+
+services:
+  inventory:
+    build:
+      context: ./services
+      dockerfile: inventory/Dockerfile
+    image: inventory:0.1.0
+    ports:
+      - "8001:8000"
+    healthcheck: *healthcheck
+
+  notification:
+    build:
+      context: ./services
+      dockerfile: notification/Dockerfile
+    image: notification:0.1.0
+    ports:
+      - "8003:8000"
+    healthcheck: *healthcheck
+
+  order:
+    build:
+      context: ./services
+      dockerfile: order/Dockerfile
+    image: order:0.1.0
+    ports:
+      - "8002:8000"
+    environment:
+      INVENTORY_URL: http://inventory:8000
+      NOTIFICATION_URL: http://notification:8000
+    depends_on:
+      inventory:
+        condition: service_healthy
+      notification:
+        condition: service_healthy
+    healthcheck: *healthcheck
+
+  frontend:
+    build:
+      context: ./services
+      dockerfile: frontend/Dockerfile
+    image: frontend:0.1.0
+    ports:
+      - "8000:8000"
+    environment:
+      INVENTORY_URL: http://inventory:8000
+      ORDER_URL: http://order:8000
+    depends_on:
+      inventory:
+        condition: service_healthy
+      order:
+        condition: service_healthy
