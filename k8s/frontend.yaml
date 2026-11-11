@@ -1,0 +1,61 @@
+# frontend: Deployment (pods + probes + resource limits) and Service (stable DNS name)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: shop
+  labels:
+    app: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: frontend:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: APP_VERSION
+              value: "0.1.0"
+            - name: INVENTORY_URL
+              value: http://inventory:8000
+            - name: ORDER_URL
+              value: http://order:8000
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8000
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: shop
+spec:
+  selector:
+    app: frontend
+  ports:
+    - port: 8000
+      targetPort: 8000

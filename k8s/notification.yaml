@@ -1,0 +1,57 @@
+# notification: Deployment (pods + probes + resource limits) and Service (stable DNS name)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification
+  namespace: shop
+  labels:
+    app: notification
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification
+  template:
+    metadata:
+      labels:
+        app: notification
+    spec:
+      containers:
+        - name: notification
+          image: notification:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: APP_VERSION
+              value: "0.1.0"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8000
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification
+  namespace: shop
+spec:
+  selector:
+    app: notification
+  ports:
+    - port: 8000
+      targetPort: 8000
